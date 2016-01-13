@@ -1,4 +1,4 @@
-package de.dkt.eservices;
+package de.dkt.eservices.timelining;
 
 import java.io.File;
 import java.util.Date;
@@ -69,7 +69,7 @@ public class Timeliner extends eu.freme.common.rest.BaseRestController{
 	public Timeliner() {
 	}
 	
-	@RequestMapping(value = "/timelining/processDocument", method = { RequestMethod.POST, RequestMethod.GET })
+	@RequestMapping(value = "/e-timelining/processDocument", method = { RequestMethod.POST, RequestMethod.GET })
 	public ResponseEntity<String> storeData(
 			@RequestParam(value = "input", required = false) String input,
 			@RequestParam(value = "i", required = false) String i,
@@ -199,7 +199,7 @@ public class Timeliner extends eu.freme.common.rest.BaseRestController{
 		
 	}
 
-	@RequestMapping(value = "/timelining/processQuery", method = { RequestMethod.POST, RequestMethod.GET })
+	@RequestMapping(value = "/e-timelining/processQuery", method = { RequestMethod.POST, RequestMethod.GET })
 	public ResponseEntity<String> processQuery(
 			@RequestParam(value = "input", required = false) String input,
 			@RequestParam(value = "i", required = false) String i,
