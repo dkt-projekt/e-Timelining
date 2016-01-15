@@ -26,8 +26,6 @@ import eu.freme.common.conversion.rdf.RDFConstants;
 
 public class ETimeliningTest {
 
-	String sourceLang = "en";
-	String targetLang = "de";
 	TestHelper testHelper;
 	ValidationHelper validationHelper;
 
@@ -39,16 +37,9 @@ public class ETimeliningTest {
 		validationHelper = context.getBean(ValidationHelper.class);
 	}
 	
-	private HttpRequestWithBody baseRequestDocument() {
-		String url = testHelper.getAPIBaseUrl() + "/e-timelining/processDocument";
-		return Unirest.post(url).queryString("source-lang", sourceLang)
-				.queryString("target-lang", targetLang);
-	}
-	
-	private HttpRequestWithBody baseRequestQuery() {
-		String url = testHelper.getAPIBaseUrl() + "/e-timelining/processQuery";
-		return Unirest.post(url).queryString("source-lang", sourceLang)
-				.queryString("target-lang", targetLang);
+	private HttpRequestWithBody baseRequest() {
+		String url = testHelper.getAPIBaseUrl() + "/e-timelining/testURL";
+		return Unirest.post(url);
 	}
 	
 	@Test
@@ -60,22 +51,8 @@ public class ETimeliningTest {
 				.queryString("input", "hello world")
 				.queryString("outformat", "turtle").asString();
 
-		validationHelper.validateNIFResponse(response,
-				RDFConstants.RDFSerialization.TURTLE);
-
-		String data = FileUtils.readFileToString(new File("src/test/resources/rdftest/e-terminology/example1.ttl"));
-//		String data = FileUtils.readFileToString(new File("src/test/resources/rdftest/e-translate/data.turtle"));
-		response = baseRequest().header("Content-Type", "text/turtle")
-				.body(data).asString();
-		validationHelper.validateNIFResponse(response, RDFConstants.RDFSerialization.TURTLE);
-
-		assertTrue(response.getStatus() == 200);
-		assertTrue(response.getBody().length() > 0);
-
-		response = baseRequest()
-				.queryString("informat", "text").queryString("outformat", "turtle").body("hello world")
-				.asString();
-		validationHelper.validateNIFResponse(response, RDFConstants.RDFSerialization.TURTLE);
+		System.out.println("BODY: "+response.getBody());
+		System.out.println("STATUS:" + response.getStatus());
 
 		assertTrue(response.getStatus() == 200);
 		assertTrue(response.getBody().length() > 0);
