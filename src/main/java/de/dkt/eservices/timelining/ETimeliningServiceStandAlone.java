@@ -3,6 +3,7 @@ package de.dkt.eservices.timelining;
 import java.io.ByteArrayInputStream;
 
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -20,7 +21,6 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import de.dkt.common.tools.ParameterChecker;
 import eu.freme.common.conversion.rdf.RDFConstants;
 import eu.freme.common.conversion.rdf.RDFConstants.RDFSerialization;
-import eu.freme.common.conversion.rdf.RDFConversionService;
 import eu.freme.common.exception.BadRequestException;
 import eu.freme.common.exception.ExternalServiceFailedException;
 import eu.freme.common.rest.BaseRestController;
@@ -45,8 +45,8 @@ public class ETimeliningServiceStandAlone extends BaseRestController{
     	return response;
 	}
 	
-	@RequestMapping(value = "/e-timelining/processDocument", method = { RequestMethod.POST, RequestMethod.GET })
-	public ResponseEntity<String> storeData(
+	@RequestMapping(value = "/e-timelining/addDocumentToTimeline", method = { RequestMethod.POST, RequestMethod.GET })
+	public ResponseEntity<String> addDocumentToTimelining(
 			@RequestParam(value = "input", required = false) String input,
 			@RequestParam(value = "i", required = false) String i,
 			@RequestParam(value = "informat", required = false) String informat,
@@ -58,23 +58,15 @@ public class ETimeliningServiceStandAlone extends BaseRestController{
 			@RequestHeader(value = "Accept", required = false) String acceptHeader,
 			@RequestHeader(value = "Content-Type", required = false) String contentTypeHeader,
 
-			@RequestParam(value = "source-lang", required = false) String sourceLang,
-
-			@RequestParam(value = "storageFileName", required = false) String storageFileName,
-			@RequestParam(value = "inputFilePath", required = false) String inputFilePath,
-//			@RequestParam(value = "preffix", required = false) String preffix,
+			@RequestParam(value = "timelineName", required = false) String timelineName,
+			@RequestParam(value = "timelinePath", required = false) String timelinePath,
+			@RequestParam(value = "timelineCreate", required = false) boolean timelineCreate,
+			@RequestHeader(value = "addElements", required = false) boolean addElements,
 			@RequestParam(value = "language", required = false) String language,
-			@RequestParam(value = "openNLPAnalysis", required = false) String openNLPAnalysis,
-			@RequestParam(value = "openNLPModels", required = false) String openNLPModels,
-			@RequestParam(value = "sesameStorageName", required = false) String sesameStorageName,
-			@RequestParam(value = "sesameStoragePath", required = false) String sesameStoragePath,
-			@RequestParam(value = "sesameCreate", required = false) boolean sesameCreate,
-			@RequestParam(value = "luceneIndexName", required = false) String luceneIndexName,
-			@RequestParam(value = "luceneIndexPath", required = false) String luceneIndexPath,
-			@RequestParam(value = "luceneFields", required = false) String luceneFields,
-			@RequestParam(value = "luceneAnalyzers", required = false) String luceneAnalyzers,
-			@RequestParam(value = "luceneCreate", required = false) boolean luceneCreate,
             @RequestBody(required = false) String postBody) throws Exception {
+
+		ParameterChecker.checkNotNullOrEmpty(timelineName, "timeline name", logger);
+		ParameterChecker.checkNotNullOrEmpty(timelinePath, "timeline path", logger);
 
 		if (input == null) {
 			input = i;
@@ -89,70 +81,37 @@ public class ETimeliningServiceStandAlone extends BaseRestController{
 			prefix = p;
 		}
     	
-		ParameterChecker.checkNotNullOrEmpty(language, "language");
-		ParameterChecker.checkNotNullOrEmpty(openNLPAnalysis, "open NLP analysis type");
-		ParameterChecker.checkNotNullOrEmpty(sesameStorageName, "sesame storage");
-		ParameterChecker.checkNotNullOrEmpty(luceneIndexName, "lucene index name");
-		ParameterChecker.checkNotNullOrEmpty(luceneFields, "lucene fields");
-		ParameterChecker.checkNotNullOrEmpty(luceneAnalyzers, "lucene analyzers");
-
 		NIFParameterSet parameters = this.normalizeNif(input, informat,
 				outformat, postBody, acceptHeader, contentTypeHeader, prefix);
 
-		// create rdf model
 		String plaintext = null;
 		Model inputModel = ModelFactory.createDefaultModel();
 
-		if (!parameters.getInformat().equals(
-				RDFConstants.RDFSerialization.PLAINTEXT)) {
-			// input is nif
+		if (!parameters.getInformat().equals(RDFConstants.RDFSerialization.PLAINTEXT)) {
 			try {
-				inputModel = this.unserializeNif(parameters.getInput(),
-						parameters.getInformat());
+				inputModel = this.unserializeNif(parameters.getInput(),parameters.getInformat());
 			} catch (Exception e) {
-				logger.error("failed", e);
+				logger.error("BAD REQUEST: error parsing NIF input", e);
+						
 				throw new BadRequestException("Error parsing NIF input");
 			}
 		} else {
 			// input is plaintext
 			plaintext = parameters.getInput();
-			getRdfConversionService().plaintextToRDF(inputModel, plaintext,
-					sourceLang, parameters.getPrefix());
+			getRdfConversionService().plaintextToRDF(inputModel, plaintext,language, parameters.getPrefix());
 		}
-
-		Model responseModel = null;
 		try {
-			String nifString = getRdfConversionService().serializeRDF(inputModel,RDFSerialization.fromValue(informat));
-			
-			//TODO Check the format of the string, if it si NIF or WHAT.
-			
-			String contentString = nifString;
-			ResponseEntity<String> responseEntity = timeliningService.storeData(
-					contentString, informat, language, openNLPAnalysis, openNLPModels, 
-					sesameStorageName, sesameStoragePath, sesameCreate, 
-					luceneIndexName, luceneIndexPath, 
-					luceneFields, luceneAnalyzers, 
-					luceneCreate, postBody);
-
-			try{
-				responseModel = getRdfConversionService().unserializeRDF(responseEntity.getBody(),
-						RDFSerialization.RDF_XML);
+			if(timeliningService.addDocumentToTimelining(parameters.getInput(), informat, timelineName, timelinePath, timelineCreate, addElements)){
+				HttpHeaders responseHeaders = new HttpHeaders();
+				responseHeaders.add("Content-Type", RDFSerialization.PLAINTEXT.contentType());
+				return new ResponseEntity<String>("Document correctly added to timeline: ["+timelineName+"]", responseHeaders, HttpStatus.OK);
+			}else{
+				throw new ExternalServiceFailedException("ERROR at adding the document to the timelining.");
 			}
-			catch(Exception e){
-				responseModel = getRdfConversionService().unserializeRDF(responseEntity.getBody(),
-						RDFSerialization.TURTLE);
-			}
-			return createSuccessResponse(responseModel, parameters.getOutformat());				
 		} catch (Exception e) {
-			if (e instanceof ExternalServiceFailedException) {
-				throw new ExternalServiceFailedException(e.getMessage(),
-						((ExternalServiceFailedException) e)
-								.getHttpStatusCode());
-			} else {
-				throw e;
-			}
+			logger.error(e.getMessage());
+			throw e;
 		}
-		
 	}
 
 	@RequestMapping(value = "/e-timelining/processQuery", method = { RequestMethod.POST, RequestMethod.GET })
@@ -169,16 +128,74 @@ public class ETimeliningServiceStandAlone extends BaseRestController{
 			@RequestHeader(value = "Content-Type", required = false) String contentTypeHeader,
 
 			@RequestParam(value = "queryText", required = false) String queryText,
+			@RequestParam(value = "timelineName", required = false) String timelineName,
+			@RequestParam(value = "timelinePath", required = false) String timelinePath,
+			@RequestHeader(value = "addElements", required = false) boolean addElements,
 			@RequestParam(value = "language", required = false) String language,
-			@RequestParam(value = "output", required = false) String output,
-			@RequestParam(value = "openNLPAnalysis", required = false) String openNLPAnalysis,
-			@RequestParam(value = "openNLPModels", required = false) String openNLPModels,
-			@RequestParam(value = "sesameStorageName", required = false) String sesameStorageName,
-			@RequestParam(value = "sesameStoragePath", required = false) String sesameStoragePath,
-			@RequestParam(value = "luceneIndexName", required = false) String luceneIndexName,
-			@RequestParam(value = "luceneIndexPath", required = false) String luceneIndexPath,
-			@RequestParam(value = "luceneFields", required = false) String luceneFields,
-			@RequestParam(value = "luceneAnalyzers", required = false) String luceneAnalyzers,
+            @RequestBody(required = false) String postBody) throws Exception {
+
+		ParameterChecker.checkNotNullOrEmpty(timelineName, "timeline name", logger);
+		ParameterChecker.checkNotNullOrEmpty(timelinePath, "timeline path", logger);
+		
+		if (input == null) {
+			input = i;
+		}
+		if (informat == null) {
+			informat = f;
+		}
+		if (outformat == null) {
+			outformat = o;
+		}
+		if (prefix == null) {
+			prefix = p;
+		}
+		
+		ParameterChecker.checkNotNullOrEmpty(input, "query text", logger);
+		ParameterChecker.checkNotNullOrEmpty(timelineName, "timeline name", logger);
+
+		NIFParameterSet parameters = this.normalizeNif(input, informat,
+				outformat, postBody, acceptHeader, contentTypeHeader, prefix);
+
+		String plaintext = null;
+		Model inputModel = ModelFactory.createDefaultModel();
+
+		if (!parameters.getInformat().equals(RDFConstants.RDFSerialization.PLAINTEXT)) {
+			try {
+				inputModel = this.unserializeNif(parameters.getInput(),parameters.getInformat());
+			} catch (Exception e) {
+				logger.error("BAD REQUEST: error parsing NIF input", e);
+				throw new BadRequestException("Error parsing NIF input");
+			}
+		} else {
+			// input is plaintext
+			plaintext = parameters.getInput();
+			getRdfConversionService().plaintextToRDF(inputModel, plaintext, language, parameters.getPrefix());
+		}
+		try {
+			JSONObject obj = timeliningService.processQuery(queryText, informat, timelineName, timelinePath, addElements);
+
+			HttpHeaders responseHeaders = new HttpHeaders();
+			responseHeaders.add("Content-Type", RDFSerialization.JSON.contentType());
+			return new ResponseEntity<String>(obj.toString(), responseHeaders, HttpStatus.OK);
+		} catch (Exception e) {
+			logger.error(e.getMessage());
+			throw e;
+		}
+	}
+
+	@RequestMapping(value = "/e-timelining/processDocumentsCollection", method = { RequestMethod.POST, RequestMethod.GET })
+	public ResponseEntity<String> timelineDocumentCollection(
+			@RequestParam(value = "input", required = false) String input,
+			@RequestParam(value = "i", required = false) String i,
+			@RequestParam(value = "informat", required = false) String informat,
+			@RequestParam(value = "f", required = false) String f,
+			@RequestParam(value = "outformat", required = false) String outformat,
+			@RequestParam(value = "o", required = false) String o,
+			@RequestParam(value = "prefix", required = false) String prefix,
+			@RequestParam(value = "p", required = false) String p,
+			@RequestHeader(value = "Accept", required = false) String acceptHeader,
+			@RequestHeader(value = "Content-Type", required = false) String contentTypeHeader,
+			@RequestHeader(value = "addElements", required = false) boolean addElements,
 			@RequestBody(required = false) String postBody) throws Exception {
 
 		if (input == null) {
@@ -193,46 +210,25 @@ public class ETimeliningServiceStandAlone extends BaseRestController{
 		if (prefix == null) {
 			prefix = p;
 		}
-		
-		ParameterChecker.checkNotNullOrEmpty(language, "language");
-		ParameterChecker.checkNotNullOrEmpty(queryText, "query text");
-		ParameterChecker.checkNotNullOrEmpty(openNLPAnalysis, "open NLP analysis type");
-		ParameterChecker.checkNotNullOrEmpty(openNLPModels, "open NLP models");
-		ParameterChecker.checkNotNullOrEmpty(sesameStorageName, "sesame storage");
-		ParameterChecker.checkNotNullOrEmpty(luceneIndexName, "lucene index name");
-		ParameterChecker.checkNotNullOrEmpty(luceneFields, "lucene fields");
-		ParameterChecker.checkNotNullOrEmpty(luceneAnalyzers, "lucene analyzers");
+		ParameterChecker.checkNotNullOrEmpty(input, "input text", logger);
 
-		NIFParameterSet parameters = this.normalizeNif(input, informat,
-				outformat, postBody, acceptHeader, contentTypeHeader, prefix);
-		
-		Model responseModel = null;
+		if(!informat.equalsIgnoreCase("json") && !informat.equalsIgnoreCase("text/json") ){
+			logger.error("Bad input INFORMAT, only JSON (json or text/json) acccepted");
+			throw new BadRequestException("Bad input INFORMAT, only JSON acccepted");
+		}
 		try {
-			String contentString = queryText;
-			
-			ResponseEntity<String> responseEntity = timeliningService.processQuery(contentString, 
-					informat, language, output, 
-					openNLPAnalysis, openNLPModels, sesameStorageName, sesameStoragePath, 
-					luceneIndexName, luceneIndexPath, luceneFields, luceneAnalyzers, postBody);
+			JSONObject inputJSONObject = new JSONObject(input);
+			JSONObject obj = timeliningService.processDocumentsCollection(inputJSONObject,addElements);
 
-//			System.out.println("OBTAINED BODY: "+responseEntity.getBody());
-//			ByteArrayInputStream bis = new ByteArrayInputStream(responseEntity.getBody().getBytes());
-//			responseModel = ModelFactory.createDefaultModel();
-//			responseModel.read(bis, "JSON");
-////			responseModel = getRdfConversionService().unserializeRDF(responseEntity.getBody(),RDFSerialization.JSON);
-			return createSuccessResponse(responseEntity.getBody(), parameters.getOutformat());
+			HttpHeaders responseHeaders = new HttpHeaders();
+			responseHeaders.add("Content-Type", RDFSerialization.JSON.contentType());
+			return new ResponseEntity<String>(obj.toString(), responseHeaders, HttpStatus.OK);
 		} catch (Exception e) {
-			e.printStackTrace();
-			if (e instanceof ExternalServiceFailedException) {
-				throw new ExternalServiceFailedException(e.getMessage(),
-						((ExternalServiceFailedException) e)
-						.getHttpStatusCode());
-			} else {
-				throw new ExternalServiceFailedException(e.getMessage());
-			}
+			logger.error(e.getMessage());
+			throw e;
 		}
 	}
-    
+
     public static void main(String[] args) {
 		Model responseModel = null;
 		try {
@@ -245,10 +241,4 @@ public class ETimeliningServiceStandAlone extends BaseRestController{
 		}
 	}
     
-	public ResponseEntity<String> createSuccessResponse(String text,
-			RDFConstants.RDFSerialization rdfFormat) {
-		HttpHeaders responseHeaders = new HttpHeaders();
-		responseHeaders.add("Content-Type", rdfFormat.contentType());
-		return new ResponseEntity<String>(text, responseHeaders, HttpStatus.OK);
-	}
 }
