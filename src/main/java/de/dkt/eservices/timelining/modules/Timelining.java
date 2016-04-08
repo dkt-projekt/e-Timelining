@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 
 import com.hp.hpl.jena.rdf.model.Model;
 
@@ -87,7 +88,7 @@ public class Timelining {
 			throw e;
 		}
 	}
-	
+
 	public static List<String> generateTimeline(List<String> listTexts, boolean addElements) throws ExternalServiceFailedException {
 		try{
 			List<TimelinedElement> inputModels = new LinkedList<TimelinedElement>();

@@ -22,37 +22,7 @@
 			<groupId>de.dkt</groupId>
 			<artifactId>DKTCommonUpdate</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>de.dkt</groupId>
-			<artifactId>DocumentStorageUpdate</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>de.dkt</groupId>
-			<artifactId>e-luceneUpdate</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>de.dkt</groupId>
-			<artifactId>e-SesameUpdate</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>de.dkt</groupId>
-			<artifactId>e-WekaUpdate</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>de.dkt</groupId>
-			<artifactId>e-openNLPUpdate</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>		
-		<dependency>
-			<groupId>de.dkt</groupId>
-			<artifactId>e-coreNLPUpdate</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>		
+		</dependency>				
 <!-- 		<dependency>
 			<groupId>de.dkt</groupId>
 			<artifactId>e-MalletUpdate</artifactId>
