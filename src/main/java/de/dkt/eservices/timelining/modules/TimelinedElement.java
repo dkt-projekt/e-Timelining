@@ -44,6 +44,6 @@ public class TimelinedElement implements Serializable{
 
 	@Override
 	public String toString() {
-		return type.name()+"<-->"+uri+"<-->"+temporalExpression.toString()+"<-->"+NIFReader.model2String(model, "TTL");
+		return type.name()+"<-->"+uri+"<-->"+temporalExpression.toString()+"<-->"+NIFReader.model2String(model, RDFSerialization.TURTLE);
 	}
 }
